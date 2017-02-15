@@ -1,54 +1,72 @@
 # Advanced Lane Finding
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-The scope of this project is to....
+The scope for this project is to find detect lane on a given recorded driving track. This is the 4th project in Term 1 Udacity Self Driving Car nanodegree. Recorded video and many referenced sample codes are provided by Udacity
 
 ## Installation & Resources
 1. Anaconda Python 3.5
 2. Udacity [Carnd-term1 starter kit](https://github.com/udacity/CarND-Term1-Starter-Kit) with miniconda installation 
 3. Udacity [provided data](https://github.com/udacity/CarND-Advanced-Lane-Lines)
 
-## Files and Usage
+## Files
 `find_lanes.ipynb` : jupyter notebook with all codes and demonstration.
 
 ## Goals
-1.
-2.
-3.
-4.
-5.
-6.
-7.
-8.
-9.
+1. Calculate camera calibration and provide example of distortion corrected calibration image. Calibrate and correct distortion on test images. Provide example.
+2. Describe and apply gradients transform on image. Provide example.
+3. Describe and apply perspective transform of image. Provide example.
+4. Describe how to find lane-line pixels and fit their position in an polynomial. Provide example.
+5. Describe how to calculate radius of curvature of the lane and the position of vehicle with respect to center.
+6. Provide an example of image after all of the above applied into an image.
+7. Provide a video result after all the above applied to every frame of the given project video.
+8. End discussion
 
 ## I. Calibration
-Intro:
-To calibrate:
-- First, I create a list of object points with shape `(nx*ny,3)` represents `(x,y,z)` coordinates. Assume z is 0 because chessboard is stationary, so x & y are the only coordinates that move.
+Photo taken by camera tends to have some type of distortion in it. There are two type of distortions: radial distortion (straight line appears curve) and tangential distortion (some area of an image looks nearer than expect). (*Source*: [OpenCV](http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_calib3d/py_calibration/py_calibration.html)). Distortion produces incorrect presentation of real scene for implementation such as Lane Dectection. To fix this, undistortion procedure can be applied by calibration
+
+To undistort an image, we need to know the distortion coefficients and camera matrix:
+- First, I create a list of object points with shape `(nx*ny,3)` represent `(x,y,z)` coordinates. Assume z is 0 because chessboard is stationary, so x & y are the only coordinates that move.
 - Second, I apply `cv2.findChessboardCorners(gray,(nx,ny),None)` function in a series of provided chessboard images. This steps will help to find a set of defined corners nx by ny corners within the chessboard.
   - If found, the defined corners coordinates will be added into a `imgpoints` (2D points) list and object points in step 1 will be also added into a `objpoints` (3D points) list.
-- Third, I apply `cv2.calibrateCamera(objpoints,imgpoints,grayimage.shape[::-1],None,None)` to find the camera matrix `mtx` and distortion coeffcients `dist`.
+- Third, I apply `cv2.calibrateCamera(objpoints,imgpoints,grayimage.shape[::-1],None,None)` to find the camera matrix `mtx` and distortion coeffcients `dist` from `objpoints` and `imgpoints` information.
 - Lastly, to undistort image `img`, I apply `cv2.undistort(img,mtx,dist,None,mtx)`.
 Below is an example on one of the chessboard images. Left is original image and Right is the undistorted image.
 
-*Note*: In the example below, (nx,ny) = (9,6) which represents 9 possible corners in each of 6 rows.
+*Comment*: In the example below, (nx,ny) = (9,6) which represents 9 possible corners in each of 6 rows. The images show improvement that some curve lines in original image change into straight line after undistortion.
+
 ![chessboard_undistort](https://cloud.githubusercontent.com/assets/23693651/22965319/045eeb82-f32b-11e6-82fe-b5fa407eb9d1.png)
 
-Another example from one of the test frame from actual video. As they aren't obvious to see the differences right away like the chessboard, some color boxes are provided to point out the differences.
+Another example from one of the test image. As they aren't obvious to see the differences right away like the chessboard, some color boxes are provided to point out the differences. Since the curves of image were being straighten, some of the features such as part of the car and the tree on left and right sides were pushing out of the image original dimension.
+
 ![raw_indist](https://cloud.githubusercontent.com/assets/23693651/22965408/73205f1a-f32b-11e6-869d-d4c0972e7c88.png)
 
 ## II. Binary Threshold
 The next important task of finding lane lines is to convert color image into binary. With only black and white pixel in binary image, it's easier to detect the lane pixels.
-For this project, I choose to combine gradient threshold on X direction OR s channel threshold AND v channel threshold. I also apply a mask to the binary image to only keep the interest area and discard the rest.
+For this project, I choose to combine gradient threshold on X direction OR s channel threshold AND v channel threshold. I also apply a mask to the binary image to keep only the interest area and remove the rest to reduce noise.
 
 Below is an example of Original -> Binary Image -> Masked Image
 
 ![binary_threshold](https://cloud.githubusercontent.com/assets/23693651/22967152/4eb8620a-f333-11e6-8e92-54c1f0ce8f8e.png)
 
 ## III. Transformation - Bird Eye View
-After finding binary image with region of interest, a transformation is need to see the lane like from the top down or we call it bird-eye view. To do so, I applied `cv2.getPerspectiveTransform(src,dst)` to find a perspective transform matrix from source coordinate `src` and transform to destination `dst`
+After finding binary image with region of interest, a transformation is needed to see the lane like from the top down or in bird-eye view. It is more accurate to use bird-eye view for any curvature calculation because the view plan faces parallel to the ground. To do so, I applied `cv2.getPerspectiveTransform(src,dst)` to find a perspective transform matrix from source coordinate `src` and transform to destination `dst`
 
 ![birdeye](https://cloud.githubusercontent.com/assets/23693651/22967624/37251aaa-f335-11e6-86a1-978da153cd36.png)
 
+## IV. Lane Lines Polynomial
+The method to find lane lines polynomial is: Finding all the pixels of left and right lines -> Apply `numpy.polyfit()` to find the polynomial coeffcients that make the poly equation best fit into the pixel coordinates. For this project, we will find coeffients of 2nd polynomial.
+
+## V. Curvature Radius and Offcenter
+Curvature radius is defined by equation `R = [(1+(2*A*y)^2)^(3/2)]/|2*A|` while `f(y) = A*y^2 + B*y + C`. [A,B,C] is calculated by `np.polyfit()` and `y` value is the maximum `y` coordinate which is the bottom of the image. Since there are 2 lanes, 2 radius curvatures can be calculated. The final radius curvature is the average of two radius Left and Right.
+
+Assume the camera is mounted in the center of the car, so the center of the image is the center position of where the car is. To find how far the car is off the center: Finding the center between the two poly lines in pixels -> Find the difference of image center and center between poly lines -> Convert from pixel to meter -> This is the offset of the car to center of the lane.
+
+## VI. Apply all of above (Pipeline) into a test image
+Here is a demonstration of Raw -> Binary Threshold -> Mask -> Perspective Transform -> Find poly lines -> Reverse Perspective Transform -> Final Image
+
+## VII. Apply Pipeline into a test video
+Here is the video showing the result of lane detection using steps describe above
+
+## VIII. End Discussion
+The first challenge here is to define a appropriate threshold combination for the binary image since there are a number of varibales such as random lighting, shadows, lane line colors, road colors,etc.. 
 
