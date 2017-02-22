@@ -30,6 +30,9 @@ To undistort an image, we need to know the distortion coefficients and camera ma
   - If found, the defined corners coordinates will be added into a `imgpoints` (2D points) list and object points in step 1 will be also added into a `objpoints` (3D points) list.
 - Third, I apply `cv2.calibrateCamera(objpoints,imgpoints,grayimage.shape[::-1],None,None)` to find the camera matrix `mtx` and distortion coeffcients `dist` from `objpoints` and `imgpoints` information.
 - Lastly, to undistort image `img`, I apply `cv2.undistort(img,mtx,dist,None,mtx)`.
+
+Find codes in `Calibration` and `Help Codes`.
+
 Below is an example on one of the chessboard images. Left is original image and Right is the undistorted image.
 
 *Comment*: In the example below, (nx,ny) = (9,6) which represents 9 possible corners in each of 6 rows. The images show improvement that some curve lines in original image change into straight line after undistortion.
@@ -42,26 +45,29 @@ Another example from one of the test image. As they aren't obvious to see the di
 
 ## II. Binary Threshold
 The next important task of finding lane lines is to convert color image into binary. With only black and white pixel in binary image, it's easier to detect the lane pixels.
-For this project, I choose to combine gradient threshold on X direction OR S channel threshold (from HLS) AND V channel threshold (from HSV). I also apply a mask to the binary image to keep only the interest area and remove the rest to reduce noise.
+For this project, I choose to combine gradient threshold on X direction `OR` S channel threshold (from HLS) `AND` V channel threshold (from HSV). I also apply a mask to the binary image to keep only the interest area and remove the rest to reduce noise.
+Find codes in `Help Codes`.
 
 Below is an example of Original -> Binary Image -> Masked Image
 
 ![binary_threshold](https://cloud.githubusercontent.com/assets/23693651/23200884/defc0698-f8a4-11e6-8493-5b5a3a8970f4.png)
 
 ## III. Transformation - Bird Eye View
-After finding binary image with region of interest, a transformation is needed to see the lane like from the top down or in bird-eye view. It is more accurate to use bird-eye view for any curvature calculation because the view plan faces parallel to the ground. To do so, I applied `cv2.getPerspectiveTransform(src,dst)` to find a perspective transform matrix from source coordinate `src` and transform to destination `dst`
+After finding binary image with region of interest, a transformation is needed to see the lane like from the top down or in bird-eye view. It is more accurate to use bird-eye view for any curvature calculation because the view plane faces parallel to the ground. To do so, I applied `cv2.getPerspectiveTransform(src,dst)` to find a perspective transform matrix from source coordinate `src` and transform to destination `dst`. `src` and `dst` are referenced from Udacity's write up example. Find codes in `Help Codes`.
 
 ![birdeye](https://cloud.githubusercontent.com/assets/23693651/23200885/e0a09be4-f8a4-11e6-9223-5f6239f57902.png)
 
 ## IV. Lane Lines Polynomial
 The method to find lane lines polynomial is: 
 
-1. Use histogram graphic to find the highest peak locations of white pixels in binary image.
+1. Use histogram plot to find the highest peak locations of white pixels in binary image.
 2. Then apply sliding windows to find average locations make up the line curvatures.
 3. Find all the white pixels of left and right lines.
-4. Apply `numpy.polyfit()` to find the polynomial coeffcients that make the poly equation best fit into the pixel coordinates. For this project, we will find coeffients of 2nd polynomial.
+4. Apply `numpy.polyfit()` to find the polynomial coeffcients that make the poly equation best fit into the curvature coordinates of left and right lines. For this project, we will find coeffients of 2nd polynomial because the curves are not complicated to use any higher polynominal order function.
 
-For next frame, histogram can be skipped by using the last known location of the lines from the previous frame. To make sure the lines are smooth, global variables are applied to find average poly coefficients of latest 5 frames to apply to the most current frame.
+For next frame, histogram can be skipped by using the last known location of the lines from the previous frame. To make sure the lines are smooth, global variables are applied to find average polynominal coefficients of latest 5 frames to apply to the most current frame.
+
+Find codes in `Pipeline`.
 
 ## V. Curvature Radius and Offcenter
 Curvature radius is defined by equation `R = [(1+(2*A*y)^2)^(3/2)]/|2*A|` while `f(y) = A*y^2 + B*y + C`. [A,B,C] is calculated by `np.polyfit()` and `y` value is the maximum `y` coordinate which is the bottom of the image. Since there are 2 lanes, 2 radius curvatures can be calculated. The final radius curvature is the average of two radius Left and Right.
@@ -69,7 +75,9 @@ Curvature radius is defined by equation `R = [(1+(2*A*y)^2)^(3/2)]/|2*A|` while 
 Assume the camera is mounted in the center of the car, so the center of the image is the center position of the car. To find how far the car is off lane center: 
 Finding the center between the two poly lines in pixels -> Find the difference of image center and center between poly lines -> Convert from pixel to meter -> This is the offset of the car to center of the lane.
 
-Meter to pixel ratios are: y_direction = 30/720, x_direction = 3.7/700. These values approximation that the width of the lane is 3.7 meter and the length of the lane in the image is 30 meters, provided by Udacity.
+Meter to pixel ratios are: y_direction = 30/720, x_direction = 3.7/700. These values approximation that the width of the lane is 3.7 meter and the length of the lane in the image is 30 meters, provided by Udacity. 
+
+Find functions in `Help Codes`
 
 ## VI. Apply all of above (Pipeline) into a test image
 Here is a result after applying all steps as mentioned above into a test image:
