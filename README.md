@@ -42,31 +42,45 @@ Another example from one of the test image. As they aren't obvious to see the di
 
 ## II. Binary Threshold
 The next important task of finding lane lines is to convert color image into binary. With only black and white pixel in binary image, it's easier to detect the lane pixels.
-For this project, I choose to combine gradient threshold on X direction OR s channel threshold AND v channel threshold. I also apply a mask to the binary image to keep only the interest area and remove the rest to reduce noise.
+For this project, I choose to combine gradient threshold on X direction OR S channel threshold (from HLS) AND V channel threshold (from HSV). I also apply a mask to the binary image to keep only the interest area and remove the rest to reduce noise.
 
 Below is an example of Original -> Binary Image -> Masked Image
 
-![binary_threshold](https://cloud.githubusercontent.com/assets/23693651/22967152/4eb8620a-f333-11e6-8e92-54c1f0ce8f8e.png)
+![binary_threshold](https://cloud.githubusercontent.com/assets/23693651/23200884/defc0698-f8a4-11e6-8493-5b5a3a8970f4.png)
 
 ## III. Transformation - Bird Eye View
 After finding binary image with region of interest, a transformation is needed to see the lane like from the top down or in bird-eye view. It is more accurate to use bird-eye view for any curvature calculation because the view plan faces parallel to the ground. To do so, I applied `cv2.getPerspectiveTransform(src,dst)` to find a perspective transform matrix from source coordinate `src` and transform to destination `dst`
 
-![birdeye](https://cloud.githubusercontent.com/assets/23693651/22967624/37251aaa-f335-11e6-86a1-978da153cd36.png)
+![birdeye](https://cloud.githubusercontent.com/assets/23693651/23200885/e0a09be4-f8a4-11e6-9223-5f6239f57902.png)
 
 ## IV. Lane Lines Polynomial
-The method to find lane lines polynomial is: Finding all the pixels of left and right lines -> Apply `numpy.polyfit()` to find the polynomial coeffcients that make the poly equation best fit into the pixel coordinates. For this project, we will find coeffients of 2nd polynomial.
+The method to find lane lines polynomial is: 
+
+1. Use histogram graphic to find the highest peak locations of white pixels in binary image.
+2. Then apply sliding windows to find average locations make up the line curvatures.
+3. Find all the white pixels of left and right lines.
+4. Apply `numpy.polyfit()` to find the polynomial coeffcients that make the poly equation best fit into the pixel coordinates. For this project, we will find coeffients of 2nd polynomial.
+
+For next frame, histogram can be skipped by using the last known location of the lines from the previous frame. To make sure the lines are smooth, global variables are applied to find average poly coefficients of latest 5 frames to apply to the most current frame.
 
 ## V. Curvature Radius and Offcenter
 Curvature radius is defined by equation `R = [(1+(2*A*y)^2)^(3/2)]/|2*A|` while `f(y) = A*y^2 + B*y + C`. [A,B,C] is calculated by `np.polyfit()` and `y` value is the maximum `y` coordinate which is the bottom of the image. Since there are 2 lanes, 2 radius curvatures can be calculated. The final radius curvature is the average of two radius Left and Right.
 
-Assume the camera is mounted in the center of the car, so the center of the image is the center position of where the car is. To find how far the car is off the center: Finding the center between the two poly lines in pixels -> Find the difference of image center and center between poly lines -> Convert from pixel to meter -> This is the offset of the car to center of the lane.
+Assume the camera is mounted in the center of the car, so the center of the image is the center position of the car. To find how far the car is off lane center: 
+Finding the center between the two poly lines in pixels -> Find the difference of image center and center between poly lines -> Convert from pixel to meter -> This is the offset of the car to center of the lane.
+
+Meter to pixel ratios are: y_direction = 30/720, x_direction = 3.7/700. These values approximation that the width of the lane is 3.7 meter and the length of the lane in the image is 30 meters, provided by Udacity.
 
 ## VI. Apply all of above (Pipeline) into a test image
-Here is a demonstration of Raw -> Binary Threshold -> Mask -> Perspective Transform -> Find poly lines -> Reverse Perspective Transform -> Final Image
+Here is a result after applying all steps as mentioned above into a test image:
+
+![test_lanes](https://cloud.githubusercontent.com/assets/23693651/23200890/e373364c-f8a4-11e6-886a-84dcdca550a8.png)
 
 ## VII. Apply Pipeline into a test video
 Here is the video showing the result of lane detection using steps describe above
 
 ## VIII. End Discussion
-The first challenge here is to define a appropriate threshold combination for the binary image since there are a number of varibales such as random lighting, shadows, lane line colors, road colors,etc.. 
-
+The main challenge here is to define a appropriate threshold combination for the binary image since there are a number of varibales such as random lighting, shadows, lane line colors, road colors,etc..
+Future works:
+As the code are being built based on basic functions, I think I can better improve the structure with more object oriented coding by using `class`.
+There are couple more challenge videos with more tricky environment provided, so I will test to see the robustness of the detection and try on different ways to make it more robust to adapt with other environment as well.
