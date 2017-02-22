@@ -87,6 +87,8 @@ Here is a result after applying all steps as mentioned above into a test image:
 ## VII. Apply Pipeline into a test video
 Here is the video showing the result of lane detection using steps describe above
 
+![Project Video](https://youtu.be/wXhlNZUeyuE)
+
 ## VIII. End Discussion
 The main challenge here is to define a appropriate threshold combination for the binary image since there are a number of varibales such as random lighting, shadows, lane line colors, road colors,etc..
 Future works:
